@@ -277,11 +277,38 @@
     border-top:1px solid var(--line);
   }
   .todo-item{
-    padding:14px 0;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    min-height:48px;
     border-bottom:1px solid var(--line);
     font-size:15.5px;
     line-height:1.7;
     color:var(--ink);
+    cursor:pointer;
+  }
+  .todo-item.done{
+    color:var(--ink-soft);
+    text-decoration:line-through;
+  }
+  .todo-del{
+    flex:none;
+    min-width:44px;
+    min-height:44px;
+    font:inherit;
+    font-size:20px;
+    line-height:1;
+    color:var(--ink-soft);
+    background:none;
+    border:0;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .todo-del:hover{ color:var(--warn); }
+  .todo-del:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
   }
   .todo-msg{
     min-height:1.5em;            /* 预留一行，出现提示时页面不跳动 */
@@ -586,62 +613,83 @@
   </footer>
 
   <script>
-(() => {
-  'use strict';
+'use strict';
 
-  const KEY = 'todos';
-  const MAX_LEN = 100;
+const KEY = 'todos';
+const MAX_LEN = 100;
 
-  const form  = document.querySelector('.todo-form');
-  const input = document.querySelector('.todo-input');
-  const list  = document.querySelector('.todo-list');
-  const msg   = document.querySelector('.todo-msg');
-  const empty = document.querySelector('.todo-empty');
-  const count = document.querySelector('.todo-count');
-  if (![form, input, list, msg, empty, count].every(Boolean)) return;   // 缺任何一个元素就直接退出，不抛错
+const form  = document.querySelector('.todo-form');
+const input = document.querySelector('.todo-input');
+const list  = document.querySelector('.todo-list');
+const msg   = document.querySelector('.todo-msg');
+const empty = document.querySelector('.todo-empty');
+const count = document.querySelector('.todo-count');
+const ready = [form, input, list, msg, empty, count].every(Boolean);   // 缺任何元素就不绑事件、不渲染，不抛错
 
-  let todos = loadTodos();
+let todos  = load();                  // 单一数据源：页面上看到的一切都由它生成
 
-  function loadTodos() {
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (raw === null) return [];
-      const data = JSON.parse(raw);
-      if (!Array.isArray(data)) throw new Error('not an array');
-      return data.filter((t) => typeof t === 'string' && t.trim() !== '');
-    } catch (err) {
-      showMsg('之前保存的待办读取失败，已从空白开始。', true);
-      return [];
-    }
-  }
+function save() {
+  localStorage.setItem(KEY, JSON.stringify(todos));
+}
 
-  function saveTodos() {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(todos));
-      return true;
-    } catch (err) {
-      return false;
-    }
-  }
+function load() {
+  const raw = localStorage.getItem(KEY);
+  if (raw === null) return [];        // 没存过 → 空数组
+  return JSON.parse(raw);             // 存过 → 解析
+}
 
-  function showMsg(text, isError) {
-    msg.textContent = text;
-    msg.classList.toggle('is-error', Boolean(isError));
-  }
+function showMsg(text, isError) {
+  if (!msg) return;
+  msg.textContent = text;
+  msg.classList.toggle('is-error', Boolean(isError));
+}
 
-  function render() {
-    const frag = document.createDocumentFragment();
-    todos.forEach((text) => {
-      const li = document.createElement('li');
-      li.className = 'todo-item';
-      li.textContent = text;              // 当文本显示，不当 HTML 解析
-      frag.appendChild(li);
+// ---- 三个操作：改数据（生成新数组）→ 保存 → 重渲染 ----
+function addTodo(text) {
+  todos = [...todos, { id: Date.now(), text, completed: false }];
+  save(); render();
+}
+
+function removeTodo(id) {
+  todos = todos.filter(t => t.id !== id);
+  save(); render();
+}
+
+function toggleTodo(id) {
+  todos = todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+  save(); render();
+}
+
+// ---- 渲染：整表重画，DOM 只在这里动 ----
+function render() {
+  const frag = document.createDocumentFragment();
+  todos.forEach(t => {
+    const li = document.createElement('li');
+    li.className = 'todo-item' + (t.completed ? ' done' : '');
+    li.dataset.id = t.id;
+
+    li.textContent = t.text;          // 当文本显示，不当 HTML 解析
+
+    li.addEventListener('click', () => toggleTodo(t.id));
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'todo-del';
+    del.textContent = '×';
+    del.setAttribute('aria-label', '删除：' + t.text);
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();            // 防止顺带触发 li 的点击
+      removeTodo(t.id);
     });
-    list.replaceChildren(frag);
-    empty.hidden = todos.length > 0;
-    count.textContent = todos.length ? '共 ' + todos.length + ' 项' : '';
-  }
+    li.appendChild(del);
+    frag.appendChild(li);
+  });
+  list.replaceChildren(frag);
+  empty.hidden = todos.length > 0;
+  count.textContent = todos.length ? '共 ' + todos.length + ' 项' : '';
+}
 
+if (ready) {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = input.value.trim();
@@ -654,19 +702,14 @@
       showMsg('最多 ' + MAX_LEN + ' 个字。', true);
       return;
     }
-    todos.push(text);
-    render();                             // 先更新页面，再保存：保存失败也不会让页面和数据对不上
+    showMsg('');
+    addTodo(text);
     input.value = '';
-    input.focus();                        // 连续添加时不用再点一次输入框
-    if (saveTodos()) {
-      showMsg('');
-    } else {
-      showMsg('已添加，但浏览器不允许保存，刷新后这条会丢失。', true);
-    }
+    input.focus();                    // 连续添加时不用再点一次输入框
   });
 
   render();
-})();
+}
   </script>
 
 </body>
