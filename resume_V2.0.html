@@ -279,16 +279,26 @@
   .todo-item{
     display:flex;
     align-items:center;
-    justify-content:space-between;
     gap:8px;
-    min-height:48px;
     border-bottom:1px solid var(--line);
     font-size:15.5px;
     line-height:1.7;
     color:var(--ink);
     cursor:pointer;
   }
-  .todo-item.done{
+  .todo-text{
+    flex:1;
+    min-width:0;
+    font:inherit;
+    color:inherit;
+    text-align:left;
+    background:none;
+    border:0;
+    padding:12px 0;
+    cursor:pointer;
+    overflow-wrap:anywhere;
+  }
+  .todo-item.done .todo-text{
     color:var(--ink-soft);
     text-decoration:line-through;
   }
@@ -306,6 +316,7 @@
     cursor:pointer;
   }
   .todo-del:hover{ color:var(--warn); }
+  .todo-text:focus-visible,
   .todo-del:focus-visible{
     outline:2px solid var(--accent);
     outline-offset:2px;
@@ -655,19 +666,60 @@ const msg   = document.querySelector('.todo-msg');
 const empty = document.querySelector('.todo-empty');
 const count = document.querySelector('.todo-count');
 const filterBtns = document.querySelectorAll('.todo-filter');
-const ready = [form, input, list, msg, empty, count].every(Boolean);   // 缺任何元素就不绑事件、不渲染，不抛错
+const ready = [form, input, list, msg, empty, count, ...filterBtns].every(Boolean);   // 缺任何元素就不绑事件、不渲染，不抛错
 
+let lastId = 0;
 let todos  = load();                  // 单一数据源：页面上看到的一切都由它生成
 let filter = 'all';                   // 视图状态：只决定“看哪些”，不改 todos
 
+// id：不能直接用 Date.now()，同一毫秒连加几条会撞号，删一条会删掉一串
+function newId() {
+  lastId = Math.max(Date.now(), lastId + 1);
+  return lastId;
+}
+
 function save() {
-  localStorage.setItem(KEY, JSON.stringify(todos));
+  try {
+    localStorage.setItem(KEY, JSON.stringify(todos));
+    return true;
+  } catch (err) {
+    showMsg('浏览器不允许保存，刷新后这次改动会丢失。', true);
+    return false;
+  }
+}
+
+// 把一条存档整理成 {id, text, completed}；整理不了就返回 null
+function normalize(item) {
+  if (typeof item === 'string') {     // W6 的旧格式：数组里直接是字符串
+    const text = item.trim();
+    return text === '' ? null : { id: newId(), text, completed: false };
+  }
+  if (item && typeof item === 'object' && typeof item.text === 'string' && item.text.trim() !== '') {
+    return {
+      id: Number.isFinite(item.id) ? item.id : newId(),
+      text: item.text,
+      completed: item.completed === true
+    };
+  }
+  return null;
 }
 
 function load() {
-  const raw = localStorage.getItem(KEY);
-  if (raw === null) return [];        // 没存过 → 空数组
-  return JSON.parse(raw);             // 存过 → 解析
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw === null) return [];
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data)) throw new Error('not an array');
+    const seen = new Set();
+    return data.map(normalize).filter(Boolean).map(t => {
+      if (seen.has(t.id)) t = { ...t, id: newId() };   // 存档里有重复 id 就重新发号
+      seen.add(t.id);
+      return t;
+    });
+  } catch (err) {
+    showMsg('之前保存的待办读取失败，已从空白开始。', true);
+    return [];
+  }
 }
 
 function showMsg(text, isError) {
@@ -678,7 +730,7 @@ function showMsg(text, isError) {
 
 // ---- 三个操作：改数据（生成新数组）→ 保存 → 重渲染 ----
 function addTodo(text) {
-  todos = [...todos, { id: Date.now(), text, completed: false }];
+  todos = [...todos, { id: newId(), text, completed: false }];
   save(); render();
 }
 
@@ -697,13 +749,19 @@ function render() {
   const shown = todos.filter(t =>
     filter === 'all'  ? true :
     filter === 'done' ? t.completed : !t.completed);
+  const focused = list.contains(document.activeElement) ? document.activeElement : null;
+  const keep = focused ? { id: focused.closest('li').dataset.id, cls: focused.className } : null;
   const frag = document.createDocumentFragment();
   shown.forEach(t => {
     const li = document.createElement('li');
     li.className = 'todo-item' + (t.completed ? ' done' : '');
     li.dataset.id = t.id;
 
-    li.textContent = t.text;          // 当文本显示，不当 HTML 解析
+    const label = document.createElement('button');
+    label.type = 'button';
+    label.className = 'todo-text';
+    label.textContent = t.text;       // 当文本显示，不当 HTML 解析
+    li.appendChild(label);
 
     li.addEventListener('click', () => toggleTodo(t.id));
 
@@ -720,6 +778,10 @@ function render() {
     frag.appendChild(li);
   });
   list.replaceChildren(frag);
+  if (keep) {                         // 重画前焦点在列表里：画完把焦点放回同一条的同一个按钮
+    const again = list.querySelector('li[data-id="' + keep.id + '"] .' + keep.cls);
+    if (again) again.focus();
+  }
 
   const done = todos.reduce((n, t) => n + (t.completed ? 1 : 0), 0);
   empty.textContent = todos.length === 0 ? '还没有待办，先写一条试试。' : '这个筛选下没有待办。';
