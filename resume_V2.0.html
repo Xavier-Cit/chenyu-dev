@@ -277,11 +277,74 @@
     border-top:1px solid var(--line);
   }
   .todo-item{
-    padding:14px 0;
+    display:flex;
+    align-items:center;
+    gap:8px;
     border-bottom:1px solid var(--line);
     font-size:15.5px;
     line-height:1.7;
     color:var(--ink);
+    cursor:pointer;
+  }
+  .todo-text{
+    flex:1;
+    min-width:0;
+    font:inherit;
+    color:inherit;
+    text-align:left;
+    background:none;
+    border:0;
+    padding:12px 0;
+    cursor:pointer;
+    overflow-wrap:anywhere;
+  }
+  .todo-item.done .todo-text{
+    color:var(--ink-soft);
+    text-decoration:line-through;
+  }
+  .todo-del{
+    flex:none;
+    min-width:44px;
+    min-height:44px;
+    font:inherit;
+    font-size:20px;
+    line-height:1;
+    color:var(--ink-soft);
+    background:none;
+    border:0;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .todo-del:hover{ color:var(--warn); }
+  .todo-text:focus-visible,
+  .todo-del:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
+  }
+  .todo-filters{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .todo-filter{
+    font:inherit;
+    font-size:14px;
+    min-height:44px;
+    padding:0 16px;
+    color:var(--ink-soft);
+    background:transparent;
+    border:1px solid var(--line);
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .todo-filter[aria-pressed="true"]{
+    color:var(--bg);
+    background:var(--ink);
+    border-color:var(--ink);
+  }
+  .todo-filter:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
   }
   .todo-msg{
     min-height:1.5em;            /* 预留一行，出现提示时页面不跳动 */
@@ -565,6 +628,11 @@
                placeholder="写一条待办，回车添加" autocomplete="off">
         <button type="submit" class="todo-btn">添加</button>
       </form>
+      <div class="todo-filters" role="group" aria-label="筛选">
+        <button type="button" class="todo-filter" data-filter="all" aria-pressed="true">全部</button>
+        <button type="button" class="todo-filter" data-filter="active" aria-pressed="false">未完成</button>
+        <button type="button" class="todo-filter" data-filter="done" aria-pressed="false">已完成</button>
+      </div>
       <p class="todo-msg" role="status"></p>
       <ul class="todo-list"></ul>
       <p class="todo-empty" hidden>还没有待办，先写一条试试。</p>
@@ -586,62 +654,148 @@
   </footer>
 
   <script>
-(() => {
-  'use strict';
+'use strict';
 
-  const KEY = 'todos';
-  const MAX_LEN = 100;
+const KEY = 'todos';
+const MAX_LEN = 100;
 
-  const form  = document.querySelector('.todo-form');
-  const input = document.querySelector('.todo-input');
-  const list  = document.querySelector('.todo-list');
-  const msg   = document.querySelector('.todo-msg');
-  const empty = document.querySelector('.todo-empty');
-  const count = document.querySelector('.todo-count');
-  if (![form, input, list, msg, empty, count].every(Boolean)) return;   // 缺任何一个元素就直接退出，不抛错
+const form  = document.querySelector('.todo-form');
+const input = document.querySelector('.todo-input');
+const list  = document.querySelector('.todo-list');
+const msg   = document.querySelector('.todo-msg');
+const empty = document.querySelector('.todo-empty');
+const count = document.querySelector('.todo-count');
+const filterBtns = document.querySelectorAll('.todo-filter');
+const ready = [form, input, list, msg, empty, count, ...filterBtns].every(Boolean);   // 缺任何元素就不绑事件、不渲染，不抛错
 
-  let todos = loadTodos();
+let lastId = 0;
+let todos  = load();                  // 单一数据源：页面上看到的一切都由它生成
+let filter = 'all';                   // 视图状态：只决定“看哪些”，不改 todos
 
-  function loadTodos() {
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (raw === null) return [];
-      const data = JSON.parse(raw);
-      if (!Array.isArray(data)) throw new Error('not an array');
-      return data.filter((t) => typeof t === 'string' && t.trim() !== '');
-    } catch (err) {
-      showMsg('之前保存的待办读取失败，已从空白开始。', true);
-      return [];
-    }
+// id：不能直接用 Date.now()，同一毫秒连加几条会撞号，删一条会删掉一串
+function newId() {
+  lastId = Math.max(Date.now(), lastId + 1);
+  return lastId;
+}
+
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(todos));
+    return true;
+  } catch (err) {
+    showMsg('浏览器不允许保存，刷新后这次改动会丢失。', true);
+    return false;
   }
+}
 
-  function saveTodos() {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(todos));
-      return true;
-    } catch (err) {
-      return false;
-    }
+// 把一条存档整理成 {id, text, completed}；整理不了就返回 null
+function normalize(item) {
+  if (typeof item === 'string') {     // W6 的旧格式：数组里直接是字符串
+    const text = item.trim();
+    return text === '' ? null : { id: newId(), text, completed: false };
   }
-
-  function showMsg(text, isError) {
-    msg.textContent = text;
-    msg.classList.toggle('is-error', Boolean(isError));
+  if (item && typeof item === 'object' && typeof item.text === 'string' && item.text.trim() !== '') {
+    return {
+      id: Number.isFinite(item.id) ? item.id : newId(),
+      text: item.text,
+      completed: item.completed === true
+    };
   }
+  return null;
+}
 
-  function render() {
-    const frag = document.createDocumentFragment();
-    todos.forEach((text) => {
-      const li = document.createElement('li');
-      li.className = 'todo-item';
-      li.textContent = text;              // 当文本显示，不当 HTML 解析
-      frag.appendChild(li);
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw === null) return [];
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data)) throw new Error('not an array');
+    const seen = new Set();
+    return data.map(normalize).filter(Boolean).map(t => {
+      if (seen.has(t.id)) t = { ...t, id: newId() };   // 存档里有重复 id 就重新发号
+      seen.add(t.id);
+      return t;
     });
-    list.replaceChildren(frag);
-    empty.hidden = todos.length > 0;
-    count.textContent = todos.length ? '共 ' + todos.length + ' 项' : '';
+  } catch (err) {
+    showMsg('之前保存的待办读取失败，已从空白开始。', true);
+    return [];
+  }
+}
+
+function showMsg(text, isError) {
+  if (!msg) return;
+  msg.textContent = text;
+  msg.classList.toggle('is-error', Boolean(isError));
+}
+
+// ---- 三个操作：改数据（生成新数组）→ 保存 → 重渲染 ----
+function addTodo(text) {
+  todos = [...todos, { id: newId(), text, completed: false }];
+  save(); render();
+}
+
+function removeTodo(id) {
+  todos = todos.filter(t => t.id !== id);
+  save(); render();
+}
+
+function toggleTodo(id) {
+  todos = todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+  save(); render();
+}
+
+// ---- 渲染：先过滤，再整表重画，DOM 只在这里动 ----
+function render() {
+  const shown = todos.filter(t =>
+    filter === 'all'  ? true :
+    filter === 'done' ? t.completed : !t.completed);
+  const focused = list.contains(document.activeElement) ? document.activeElement : null;
+  const keep = focused ? { id: focused.closest('li').dataset.id, cls: focused.className } : null;
+  const frag = document.createDocumentFragment();
+  shown.forEach(t => {
+    const li = document.createElement('li');
+    li.className = 'todo-item' + (t.completed ? ' done' : '');
+    li.dataset.id = t.id;
+
+    const label = document.createElement('button');
+    label.type = 'button';
+    label.className = 'todo-text';
+    label.textContent = t.text;       // 当文本显示，不当 HTML 解析
+    li.appendChild(label);
+
+    li.addEventListener('click', () => toggleTodo(t.id));
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'todo-del';
+    del.textContent = '×';
+    del.setAttribute('aria-label', '删除：' + t.text);
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();            // 防止顺带触发 li 的点击
+      removeTodo(t.id);
+    });
+    li.appendChild(del);
+    frag.appendChild(li);
+  });
+  list.replaceChildren(frag);
+  if (keep) {                         // 重画前焦点在列表里：画完把焦点放回同一条的同一个按钮
+    const again = list.querySelector('li[data-id="' + keep.id + '"] .' + keep.cls);
+    if (again) again.focus();
   }
 
+  const done = todos.reduce((n, t) => n + (t.completed ? 1 : 0), 0);
+  empty.textContent = todos.length === 0 ? '还没有待办，先写一条试试。' : '这个筛选下没有待办。';
+  empty.hidden = shown.length > 0;
+  count.textContent = todos.length ? '共 ' + todos.length + ' 项，已完成 ' + done + ' 项' : '';
+  filterBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.filter === filter)));
+}
+
+function setFilter(f) {
+  filter = f;                         // all / done / active
+  render();                           // 视图状态：不需要 save()
+}
+
+if (ready) {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = input.value.trim();
@@ -654,19 +808,15 @@
       showMsg('最多 ' + MAX_LEN + ' 个字。', true);
       return;
     }
-    todos.push(text);
-    render();                             // 先更新页面，再保存：保存失败也不会让页面和数据对不上
+    showMsg('');
+    addTodo(text);
     input.value = '';
-    input.focus();                        // 连续添加时不用再点一次输入框
-    if (saveTodos()) {
-      showMsg('');
-    } else {
-      showMsg('已添加，但浏览器不允许保存，刷新后这条会丢失。', true);
-    }
+    input.focus();                    // 连续添加时不用再点一次输入框
   });
+  filterBtns.forEach(b => b.addEventListener('click', () => setFilter(b.dataset.filter)));
 
   render();
-})();
+}
   </script>
 
 </body>
