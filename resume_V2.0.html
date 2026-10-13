@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>陈屿</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FDFDFC;
+    --ink:#1A1A1A;
+    --ink-soft:#6B6B6B;
+    --accent:#2F4B7C;
+    --line:#ECECEC;
+    --nav-h:56px;
+    --warn:#A4262C;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-padding-top:var(--nav-h); }   /* 点击导航跳转时，不让吸顶导航盖住板块开头 */
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Noto Sans SC", sans-serif;
+    font-weight:300;
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+  }
+  .hero{
+    min-height:calc(100vh - var(--nav-h));    /* 旧浏览器回退 */
+    min-height:calc(100svh - var(--nav-h));   /* 手机浏览器：按“可见视口”而不是含地址栏的100vh */
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    gap:20px;
+    max-width:640px;
+    margin:0 auto;
+    padding:0 20px;
+  }
+  .eyebrow{
+    font-size:14px;
+    color:var(--ink-soft);
+    letter-spacing:.02em;
+    margin:0;
+  }
+  .hero h1{
+    font-family:"Noto Serif SC", serif;
+    font-weight:600;
+    font-size:clamp(40px, 7vw, 64px);
+    line-height:1.15;
+    margin:0;
+  }
+  .role{
+    font-size:17px;
+    color:var(--ink-soft);
+    font-weight:400;
+    margin:0;
+  }
+  .desc{
+    font-size:15.5px;
+    line-height:1.9;
+    color:var(--ink-soft);
+    max-width:460px;
+    margin:0;
+  }
+  .accent{ color:var(--accent); }
+
+  .site-main{ flex:1 0 auto; }
+
+  /* ---------- 顶部导航 ---------- */
+  .top-nav{
+    position:sticky;
+    top:0;
+    z-index:10;
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;  /* 移动端优先：从左侧起排，第一个链接可见、可滚动到 */
+    gap:28px;
+    height:var(--nav-h);
+    padding:0 20px;
+    background:rgba(253,253,252,.85);
+    -webkit-backdrop-filter:blur(6px);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+    overflow-x:auto;
+  }
+  .top-nav a{
+    font-size:13px;
+    color:var(--ink-soft);
+    text-decoration:none;
+    white-space:nowrap;
+    display:flex;
+    align-items:center;
+    align-self:stretch;   /* 点击区域撑满整条导航高度，手机上更好点 */
+  }
+  .top-nav a:hover{ color:var(--accent); }
+
+  /* ---------- 通用板块容器 ---------- */
+  .section{
+    display:grid;
+    grid-template-columns:minmax(0, 1fr);
+    gap:28px;
+    max-width:640px;
+    margin:0 auto;
+    padding:56px 20px;
+    border-top:1px solid var(--line);
+  }
+  .section-label{
+    font-size:13px;
+    color:var(--ink-soft);
+    letter-spacing:.02em;
+    margin:0 0 12px;
+  }
+  .section h2{
+    font-family:"Noto Serif SC", serif;
+    font-weight:600;
+    font-size:26px;
+    margin:0;
+  }
+  /* :where() 让这条基础规则权重降为0，不再压过 .entry-* / .section-label / .hobby-* 这些更具体的类 */
+  :where(.section) p{
+    font-size:15.5px;
+    line-height:1.9;
+    color:var(--ink-soft);
+    margin:0 0 16px;
+  }
+  :where(.section p:last-child){ margin-bottom:0; }
+
+  /* ---------- 经历条目(学习/实习/项目通用) ---------- */
+  .section-body, .footer{ overflow-wrap:anywhere; }   /* 超长网址/邮箱在窄屏自动断行，不撑破网格 */
+  .entry-grid{
+    display:grid;
+    grid-template-columns:minmax(0, 1fr);
+    gap:32px 24px;
+  }
+  .entry-date{
+    font-size:13px;
+    color:var(--ink-soft);
+    margin:0 0 6px;
+  }
+  .entry-title{
+    font-size:16.5px;
+    font-weight:500;
+    color:var(--ink);
+    margin:0 0 8px;
+  }
+  .entry-title .sub{
+    font-weight:300;
+    color:var(--ink-soft);
+    font-size:14px;
+  }
+  .entry-desc{
+    font-size:14.5px;
+    line-height:1.85;
+    color:var(--ink-soft);
+    margin:0;
+  }
+
+  /* ---------- 标签(性格特质) ---------- */
+  .tag-list{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .tag{
+    font-size:13px;
+    padding:7px 16px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    color:var(--ink-soft);
+  }
+
+  /* ---------- 兴趣爱好 ----------
+     用 flex:1 让每一项自动等分一行的宽度；
+     数量变化或换行时不需要手动重算百分比，也不用 margin 模拟间距 */
+  .hobby-list{
+    display:grid;
+    grid-template-columns:minmax(0, 1fr);
+    gap:20px 32px;
+  }
+  .hobby-name{
+    font-size:15px;
+    font-weight:500;
+    color:var(--ink);
+    margin:0 0 4px;
+  }
+  .hobby-desc{
+    font-size:13.5px;
+    line-height:1.7;
+    color:var(--ink-soft);
+    margin:0;
+  }
+
+  /* ---------- 联系方式(页脚) ---------- */
+  .footer{
+    max-width:640px;
+    margin:0 auto;
+    padding:56px 20px 48px;
+    border-top:1px solid var(--line);
+  }
+  .footer h2{
+    font-family:"Noto Serif SC", serif;
+    font-weight:600;
+    font-size:24px;
+    margin:0 0 20px;
+  }
+  .contact-list{
+    list-style:none;
+    padding:0;
+    margin:0;
+    font-size:14.5px;
+    color:var(--ink-soft);
+  }
+  .contact-list li{ margin-bottom:10px; }
+  .contact-list a{
+    color:var(--ink-soft);
+    text-decoration:none;
+    border-bottom:1px solid var(--line);
+  }
+  .contact-list a:hover{ color:var(--accent); border-color:var(--accent); }
+  .contact-list .placeholder{
+    border-bottom:1px dashed var(--line);
+  }
+  .stamp{
+    font-size:13px;
+    color:var(--ink-soft);
+    margin:40px 0 0;
+  }
+
+  /* ---------- 待办清单 ---------- */
+  .todo{
+    display:grid;
+    grid-template-columns:minmax(0, 1fr);   /* 不写这行，列宽默认 auto，会被 input 的固有宽度撑破 */
+    gap:12px;
+  }
+  .todo-form{
+    display:flex;
+    gap:12px;
+  }
+  .todo-input{
+    flex:1;
+    min-width:0;                 /* 允许 input 在窄屏收缩，不撑破一行 */
+    font:inherit;
+    font-size:16px;              /* 手机上 ≥16px，iOS 才不会自动放大页面 */
+    font-weight:400;
+    color:var(--ink);
+    background:transparent;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:12px 14px;
+  }
+  .todo-input::placeholder{ color:var(--ink-soft); }
+  .todo-input:focus-visible,
+  .todo-btn:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
+  }
+  .todo-btn{
+    flex:none;
+    font:inherit;
+    font-size:15px;
+    min-height:44px;             /* 触控区域 ≥ 44px */
+    padding:0 22px;
+    color:var(--bg);
+    background:var(--ink);
+    border:0;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .todo-btn:hover{ background:var(--accent); }
+  .todo-list{
+    list-style:none;
+    margin:0;
+    padding:0;
+    border-top:1px solid var(--line);
+  }
+  .todo-item{
+    padding:14px 0;
+    border-bottom:1px solid var(--line);
+    font-size:15.5px;
+    line-height:1.7;
+    color:var(--ink);
+  }
+  .todo-msg{
+    min-height:1.5em;            /* 预留一行，出现提示时页面不跳动 */
+    font-size:14px;
+    line-height:1.5;
+    color:var(--ink-soft);
+    margin:0;
+  }
+  .todo-msg.is-error{ color:var(--warn); }
+  .todo-empty,
+  .todo-count{
+    font-size:14px;
+    color:var(--ink-soft);
+    margin:0;
+  }
+  .sr-only{                      /* 只给读屏看的 label */
+    position:absolute;
+    width:1px; height:1px;
+    margin:-1px; padding:0;
+    overflow:hidden;
+    clip:rect(0 0 0 0);
+    white-space:nowrap;
+    border:0;
+  }
+
+  /* ---------- 响应式断点（移动端优先，min-width 逐步增强）---------- */
+  /* 600px：两列卡片各≥约260px才能放下最长的条目标题 */
+  @media (min-width:600px){
+    .section{ padding:72px 32px; }
+    .hero{ padding:0 32px; }
+    .footer{ padding:72px 32px 64px; }
+    .entry-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    .hobby-list{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    .entry-grid--lead .entry:first-child{ grid-column:1 / -1; }   /* 3个项目：首个通栏，避免最后一行落单留空 */
+  }
+  /* 导航加了第 8 项：内容约 599px，宽度 ≥ 648px 才放得下并居中 */
+  @media (min-width:648px){
+    .top-nav{ justify-content:center; padding:0 24px; }
+  }
+  /* 960px：标题栏(200px) + 间距(48px) + 正文阅读宽度(≈640px) + 两侧内边距 */
+  @media (min-width:960px){
+    .section{
+      max-width:1000px;
+      grid-template-columns:200px minmax(0, 1fr);
+      column-gap:48px;
+    }
+    .hobby-list{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+  <nav class="top-nav">
+    <a href="#about">关于我</a>
+    <a href="#study">学习经历</a>
+    <a href="#intern">实习经历</a>
+    <a href="#project">项目经历</a>
+    <a href="#trait">性格特质</a>
+    <a href="#hobby">兴趣爱好</a>
+    <a href="#todo">待办清单</a>
+    <a href="#contact">联系方式</a>
+  </nav>
+
+  <header>
+    <section class="hero">
+      <p class="eyebrow">神针大学 · 计算机科学与技术 · 大三在读</p>
+      <h1>陈屿</h1>
+      <p class="role">写代码，也写日记的 <span class="accent">CS</span> 学生</p>
+      <p class="desc">
+        喜欢把复杂的问题拆成小块解决，也喜欢在深夜给自己的项目取一些奇怪的名字。
+        这个页面记录了我大学三年里读过的书、踩过的坑、做过的东西。
+      </p>
+    </section>
+  </header>
+
+  <main class="site-main">
+
+  <section class="section" id="about">
+    <div class="section-head">
+    <p class="section-label">01 · 关于我</p>
+    <h2>关于我</h2>
+    </div>
+    <div class="section-body">
+    <p>
+      我是陈屿，神针大学计算机科学与技术专业的一名大三学生。
+      高考报志愿那年，我把六个平行志愿全填了计算机——原因很朴素，
+      初三时用 Scratch 拼出了人生第一个会动的小游戏，从那以后就没停下来。
+    </p>
+    <p>
+      我不算是那种一坐下来就能写八小时代码的人，但我很擅长在卡住的时候
+      <span class="accent">换一个角度重新想问题</span>。大一学 C 语言时挂过一次链表作业的分，
+      后来干脆把数据结构的所有代码手写实现了一遍，现在反而是我最扎实的部分。
+    </p>
+    <p>
+      课余时间我在学校的"启明"编程社里负责技术培训，也喜欢把学到的东西
+      写成博客——不追求专业，只求半年后自己还能看懂。
+    </p>
+    </div>
+  </section>
+
+  <section class="section" id="study">
+    <div class="section-head">
+    <p class="section-label">02 · 学习经历</p>
+    <h2>学习经历</h2>
+    </div>
+    <div class="section-body">
+      <div class="entry-grid">
+    <div class="entry">
+      <p class="entry-date">2025.09 — 至今</p>
+      <p class="entry-title">"启明"编程社 <span class="sub">技术部部长</span></p>
+      <p class="entry-desc">
+        带队为大一新生开设每周一次的算法与 Git 协作培训，把自己踩过的坑整理成了一份
+        十二周的入门讲义，目前还在被学弟学妹传阅。
+      </p>
+    </div>
+
+    <div class="entry">
+      <p class="entry-date">2024.10</p>
+      <p class="entry-title">ICPC 区域赛 <span class="sub">铜奖</span></p>
+      <p class="entry-desc">
+        与两位队友组队参赛，负责图论与动态规划相关题目，比赛中因为一次读题失误
+        错失金牌线，此后养成了做题先画样例的习惯。
+      </p>
+    </div>
+
+    <div class="entry">
+      <p class="entry-date">2024.06</p>
+      <p class="entry-title">全国大学生数学建模竞赛 <span class="sub">省一等奖</span></p>
+      <p class="entry-desc">
+        三天两夜完成城市共享单车调度优化建模，负责数据清洗与模型代码实现，
+        第一次体会到"跨专业合作"比想象中难得多，也有趣得多。
+      </p>
+    </div>
+
+    <div class="entry">
+      <p class="entry-date">2023.09 — 2024.01</p>
+      <p class="entry-title">操作系统课程设计 <span class="sub">优秀</span></p>
+      <p class="entry-desc">
+        与同学合作在 xv6 基础上实现了简易的虚拟内存管理和多级反馈队列调度，
+        这门课让我第一次理解"计算机是怎么骗自己内存很大"的。
+      </p>
+    </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="intern">
+    <div class="section-head">
+    <p class="section-label">03 · 实习经历</p>
+    <h2>实习经历</h2>
+    </div>
+    <div class="section-body">
+      <div class="entry-grid">
+    <div class="entry">
+      <p class="entry-date">2025.07 — 2025.09</p>
+      <p class="entry-title">格物数据 <span class="sub">算法实习生 · 人工智能实验室</span></p>
+      <p class="entry-desc">
+        参与推荐系统召回模块的迭代，负责特征工程和离线评估脚本的编写，
+        将用户行为序列特征接入模型后，离线 AUC 提升了 2.3 个百分点。
+        第一次感受到"模型上线只是开始"，后续的监控和迭代才是大头。
+      </p>
+    </div>
+
+    <div class="entry">
+      <p class="entry-date">2024.07 — 2024.08</p>
+      <p class="entry-title">云帆科技 <span class="sub">后端开发实习生 · 基础架构组</span></p>
+      <p class="entry-desc">
+        参与内部工单系统的重构，把一个慢查询接口的响应时间从 1.2s 优化到 180ms，
+        并为遗留代码补齐了约 40% 的单元测试覆盖率。学会了在陌生代码库里
+        "先别急着改，先读懂再动手"。
+      </p>
+    </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="project">
+    <div class="section-head">
+    <p class="section-label">04 · 项目经历</p>
+    <h2>项目经历</h2>
+    </div>
+    <div class="section-body">
+      <div class="entry-grid entry-grid--lead">
+    <div class="entry">
+      <p class="entry-date">2025.03 — 2025.06</p>
+      <p class="entry-title">拾光 <span class="sub">校园二手交易小程序 · 独立开发</span></p>
+      <p class="entry-desc">
+        因为总在宿舍群里刷到"求购台灯"的消息，干脆自己写了一个面向本校的
+        二手交易小程序，上线后陆续有三百多名同学注册使用。
+      </p>
+    </div>
+
+    <div class="entry">
+      <p class="entry-date">2024.11 — 2024.12</p>
+      <p class="entry-title">贪吃蛇强化学习 AI <span class="sub">课程结课项目</span></p>
+      <p class="entry-desc">
+        用 DQN 训练了一个会玩贪吃蛇的 AI，从一开始撞墙都不会躲，到后来能稳定
+        吃到六十多分，是我第一次亲眼看着一个模型"学会"东西。
+      </p>
+    </div>
+
+    <div class="entry">
+      <p class="entry-date">2023.12 至今</p>
+      <p class="entry-title">个人博客与待办系统 <span class="sub">持续维护</span></p>
+      <p class="entry-desc">
+        最初只是想要一个记笔记的地方，后来陆续加上了待办清单和阅读记录，
+        现在是我每天打开次数最多的网站，没有之一。
+      </p>
+    </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="trait">
+    <div class="section-head">
+    <p class="section-label">05 · 性格特质</p>
+    <h2>性格特质</h2>
+    </div>
+    <div class="section-body">
+    <p>
+      好奇心强，对没接触过的技术会忍不住想搞懂原理；逻辑清晰但不死板，
+      习惯先把问题拆解成小块，也接受"先跑通再优化"这种不完美的中间状态；
+      在团队里偏向"粘合剂"角色，不是技术最强的人，但擅长同步进度、拉齐认知。
+    </p>
+    <div class="tag-list">
+      <span class="tag">逻辑思维</span>
+      <span class="tag">好奇心强</span>
+      <span class="tag">抗压能力</span>
+      <span class="tag">团队协作</span>
+      <span class="tag">表达沟通</span>
+      <span class="tag">执行力</span>
+    </div>
+    </div>
+  </section>
+
+  <section class="section" id="hobby">
+    <div class="section-head">
+    <p class="section-label">06 · 兴趣爱好</p>
+    <h2>兴趣爱好</h2>
+    </div>
+    <div class="section-body">
+    <div class="hobby-list">
+      <div>
+        <p class="hobby-name">攀岩</p>
+        <p class="hobby-desc">大二被室友拉去岩馆一次就上瘾，喜欢那种必须完全专注的状态。</p>
+      </div>
+      <div>
+        <p class="hobby-name">电子音乐制作</p>
+        <p class="hobby-desc">用 Ableton 瞎捣鼓节拍，产出大多不能听，但过程很解压。</p>
+      </div>
+      <div>
+        <p class="hobby-name">科幻小说</p>
+        <p class="hobby-desc">刘慈欣和特德·姜的书翻来覆去看，喜欢设定先行的叙事方式。</p>
+      </div>
+      <div>
+        <p class="hobby-name">撸猫</p>
+        <p class="hobby-desc">在学校后山投喂过的野猫加起来能凑一支球队，各个都有名字。</p>
+      </div>
+      <div>
+        <p class="hobby-name">烘焙</p>
+        <p class="hobby-desc">做面包被我当成另一种调参，温度差五度结果完全不同。</p>
+      </div>
+      <div>
+        <p class="hobby-name">羽毛球</p>
+        <p class="hobby-desc">每周雷打不动约球两次，主要目的是把久坐欠下的债还回去。</p>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <section class="section" id="todo">
+    <div class="section-head">
+    <p class="section-label">07 · 待办清单</p>
+    <h2>待办清单</h2>
+    </div>
+    <div class="section-body">
+    <div class="todo">
+      <form class="todo-form" novalidate>
+        <label class="sr-only" for="todo-input">新的待办</label>
+        <input type="text" id="todo-input" class="todo-input" maxlength="100"
+               placeholder="写一条待办，回车添加" autocomplete="off">
+        <button type="submit" class="todo-btn">添加</button>
+      </form>
+      <p class="todo-msg" role="status"></p>
+      <ul class="todo-list"></ul>
+      <p class="todo-empty" hidden>还没有待办，先写一条试试。</p>
+      <p class="todo-count" aria-live="polite"></p>
+    </div>
+    </div>
+  </section>
+
+  </main>
+
+  <footer class="footer" id="contact">
+    <h2>联系方式</h2>
+    <ul class="contact-list">
+      <li>邮箱　<a href="mailto:chenyu@shenzhen-univ.example.com">chenyu@shenzhen-univ.example.com</a></li>
+      <li>GitHub　<span class="placeholder">github.com/chenyu-dev</span></li>
+      <li>所在地　神针市</li>
+    </ul>
+    <p class="stamp">神针大学 · 信息与软件学院 · 本页内容为示例，可自由替换为真实经历</p>
+  </footer>
+
+  <script>
+(() => {
+  'use strict';
+
+  const KEY = 'todos';
+  const MAX_LEN = 100;
+
+  const form  = document.querySelector('.todo-form');
+  const input = document.querySelector('.todo-input');
+  const list  = document.querySelector('.todo-list');
+  const msg   = document.querySelector('.todo-msg');
+  const empty = document.querySelector('.todo-empty');
+  const count = document.querySelector('.todo-count');
+  if (![form, input, list, msg, empty, count].every(Boolean)) return;   // 缺任何一个元素就直接退出，不抛错
+
+  let todos = loadTodos();
+
+  function loadTodos() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw === null) return [];
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data)) throw new Error('not an array');
+      return data.filter((t) => typeof t === 'string' && t.trim() !== '');
+    } catch (err) {
+      showMsg('之前保存的待办读取失败，已从空白开始。', true);
+      return [];
+    }
+  }
+
+  function saveTodos() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(todos));
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function showMsg(text, isError) {
+    msg.textContent = text;
+    msg.classList.toggle('is-error', Boolean(isError));
+  }
+
+  function render() {
+    const frag = document.createDocumentFragment();
+    todos.forEach((text) => {
+      const li = document.createElement('li');
+      li.className = 'todo-item';
+      li.textContent = text;              // 当文本显示，不当 HTML 解析
+      frag.appendChild(li);
+    });
+    list.replaceChildren(frag);
+    empty.hidden = todos.length > 0;
+    count.textContent = todos.length ? '共 ' + todos.length + ' 项' : '';
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (text === '') {
+      showMsg('请先写点内容再添加。', true);
+      input.focus();
+      return;
+    }
+    if (text.length > MAX_LEN) {
+      showMsg('最多 ' + MAX_LEN + ' 个字。', true);
+      return;
+    }
+    todos.push(text);
+    render();                             // 先更新页面，再保存：保存失败也不会让页面和数据对不上
+    input.value = '';
+    input.focus();                        // 连续添加时不用再点一次输入框
+    if (saveTodos()) {
+      showMsg('');
+    } else {
+      showMsg('已添加，但浏览器不允许保存，刷新后这条会丢失。', true);
+    }
+  });
+
+  render();
+})();
+  </script>
+
+</body>
+</html>
