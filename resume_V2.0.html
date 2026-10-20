@@ -755,7 +755,7 @@ function render() {
   shown.forEach(t => {
     const li = document.createElement('li');
     li.className = 'todo-item' + (t.completed ? ' done' : '');
-    li.dataset.id = t.id;
+    li.dataset.id = t.id;               // 标记"我是哪一条"（读出来是字符串）
 
     const label = document.createElement('button');
     label.type = 'button';
@@ -768,7 +768,11 @@ function render() {
     const del = document.createElement('button');
     del.type = 'button';
     del.className = 'todo-del';
-    del.textContent = '×';
+    del.dataset.action = 'delete';      // 标记"点我是干什么"，W8 委托时靠它分流
+    const icon = document.createElement('span');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = '×';
+    del.appendChild(icon);              // 按钮里有子元素：点到 × 时 e.target 是 span，不是 button
     del.setAttribute('aria-label', '删除：' + t.text);
     del.addEventListener('click', (e) => {
       e.stopPropagation();            // 防止顺带触发 li 的点击
