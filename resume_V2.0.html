@@ -763,8 +763,6 @@ function render() {
     label.textContent = t.text;       // 当文本显示，不当 HTML 解析
     li.appendChild(label);
 
-    li.addEventListener('click', () => toggleTodo(t.id));
-
     const del = document.createElement('button');
     del.type = 'button';
     del.className = 'todo-del';
@@ -774,11 +772,7 @@ function render() {
     icon.textContent = '×';
     del.appendChild(icon);              // 按钮里有子元素：点到 × 时 e.target 是 span，不是 button
     del.setAttribute('aria-label', '删除：' + t.text);
-    del.addEventListener('click', (e) => {
-      e.stopPropagation();            // 防止顺带触发 li 的点击
-      removeTodo(t.id);
-    });
-    li.appendChild(del);
+    li.appendChild(del);              // render 只负责画：不再给 li 和按钮绑监听器
     frag.appendChild(li);
   });
   list.replaceChildren(frag);
@@ -818,6 +812,22 @@ if (ready) {
     input.focus();                    // 连续添加时不用再点一次输入框
   });
   filterBtns.forEach(b => b.addEventListener('click', () => setFilter(b.dataset.filter)));
+
+  // 事件委托：监听器只绑一次，绑在不会被 render() 重画的 ul 上
+  list.addEventListener('click', (e) => {
+    if (!(e.target instanceof Element)) return;           // 防御 1：target 不是元素
+    const item = e.target.closest('li');
+    if (!item || !list.contains(item)) return;            // 防御 2：点在 li 之外，closest 返回 null
+    const id = Number(item.dataset.id);                   // dataset 读出来是字符串，todos 里的 id 是数字
+    if (!Number.isFinite(id)) return;                     // 防御 3：li 上没有合法 id
+
+    const delBtn = e.target.closest('[data-action="delete"]');
+    if (delBtn && item.contains(delBtn)) {
+      removeTodo(id);
+    } else {
+      toggleTodo(id);                                     // 删除与切换互斥，只走一个分支
+    }
+  });
 
   render();
 }
