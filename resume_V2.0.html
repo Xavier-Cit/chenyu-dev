@@ -316,7 +316,21 @@
     cursor:pointer;
   }
   .todo-del:hover{ color:var(--warn); }
+  .todo-edit{
+    flex:none;
+    min-height:44px;
+    padding:0 6px;
+    font:inherit;
+    font-size:14px;
+    color:var(--ink-soft);
+    background:none;
+    border:0;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .todo-edit:hover{ color:var(--accent); }
   .todo-text:focus-visible,
+  .todo-edit:focus-visible,
   .todo-del:focus-visible{
     outline:2px solid var(--accent);
     outline-offset:2px;
@@ -744,6 +758,31 @@ function toggleTodo(id) {
   save(); render();
 }
 
+function updateTodo(id, text) {
+  todos = todos.map(t => t.id === id ? { ...t, text } : t);
+  save(); render();
+}
+
+// 编辑：取当前文本 → prompt → 边界检查 → updateTodo
+function editTodo(id) {
+  const current = todos.find(t => t.id === id);
+  if (!current) return;                 // 数据里已经没有这一条
+  const answer = prompt('修改待办', current.text);
+  if (answer === null) return;          // 点了取消：什么都不改
+  const text = answer.trim();
+  if (text === '') {
+    showMsg('内容不能为空，已保留原来的文字。', true);
+    return;
+  }
+  if (text.length > MAX_LEN) {
+    showMsg('最多 ' + MAX_LEN + ' 个字，已保留原来的文字。', true);
+    return;
+  }
+  if (text === current.text) return;    // 没改动就不保存
+  showMsg('');
+  updateTodo(id, text);
+}
+
 // ---- 渲染：先过滤，再整表重画，DOM 只在这里动 ----
 function render() {
   const shown = todos.filter(t =>
@@ -762,6 +801,14 @@ function render() {
     label.className = 'todo-text';
     label.textContent = t.text;       // 当文本显示，不当 HTML 解析
     li.appendChild(label);
+
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'todo-edit';
+    edit.dataset.action = 'edit';       // 新操作只需新的 data-action，ul 上的监听器不用改绑
+    edit.textContent = '编辑';
+    edit.setAttribute('aria-label', '编辑：' + t.text);
+    li.appendChild(edit);
 
     const del = document.createElement('button');
     del.type = 'button';
@@ -821,11 +868,14 @@ if (ready) {
     const id = Number(item.dataset.id);                   // dataset 读出来是字符串，todos 里的 id 是数字
     if (!Number.isFinite(id)) return;                     // 防御 3：li 上没有合法 id
 
-    const delBtn = e.target.closest('[data-action="delete"]');
+    const delBtn  = e.target.closest('[data-action="delete"]');
+    const editBtn = e.target.closest('[data-action="edit"]');
     if (delBtn && item.contains(delBtn)) {
       removeTodo(id);
+    } else if (editBtn && item.contains(editBtn)) {
+      editTodo(id);
     } else {
-      toggleTodo(id);                                     // 删除与切换互斥，只走一个分支
+      toggleTodo(id);                                     // 删除 / 编辑 / 切换互斥，只走一个分支
     }
   });
 
