@@ -95,64 +95,81 @@ function start(els: Els): void {
     return true;
   }
 
-  function render(): void {
-    const shown = filterTodos(todos, filter);
+  interface FocusSpot {
+    id: string;
+    cls: string;
+  }
+
+  // 重画前记下焦点在哪一条的哪个按钮上；焦点不在列表里就返回 null
+  function captureFocus(): FocusSpot | null {
     const active = document.activeElement;
-    const focused = active instanceof HTMLElement && els.list.contains(active) ? active : null;
-    const keepId = focused?.closest('li')?.dataset.id;
-    const keepCls = focused?.className;
+    if (!(active instanceof HTMLElement) || !els.list.contains(active)) return null;
+    const id = active.closest('li')?.dataset.id;
+    const cls = active.className.split(' ')[0];
+    return id !== undefined && cls ? { id, cls } : null;
+  }
 
-    const frag = document.createDocumentFragment();
-    for (const t of shown) {
-      const li = document.createElement('li');
-      li.className = 'todo-item' + (t.completed ? ' done' : '');
-      li.dataset.id = String(t.id); // dataset 只能存字符串，读回来时再用 parseId 转成 number
+  // 画完把焦点放回同一条的同一个按钮
+  function restoreFocus(spot: FocusSpot | null): void {
+    if (!spot) return;
+    els.list.querySelector<HTMLElement>(`li[data-id="${spot.id}"] .${spot.cls}`)?.focus();
+  }
 
-      const label = document.createElement('button');
-      label.type = 'button';
-      label.className = 'todo-text';
-      label.textContent = t.text; // 当文本显示，不当 HTML 解析
+  function makeButton(cls: string, label: string): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = cls;
+    btn.setAttribute('aria-label', label);
+    return btn;
+  }
 
-      const edit = document.createElement('button');
-      edit.type = 'button';
-      edit.className = 'todo-edit';
-      edit.dataset.action = 'edit';
-      edit.textContent = '编辑';
-      edit.setAttribute('aria-label', '编辑：' + t.text);
+  function buildItem(t: Todo): HTMLLIElement {
+    const li = document.createElement('li');
+    li.className = 'todo-item' + (t.completed ? ' done' : '');
+    li.dataset.id = String(t.id); // dataset 只能存字符串，读回来时再用 parseId 转成 number
 
-      const del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'todo-del';
-      del.dataset.action = 'delete';
-      const icon = document.createElement('span');
-      icon.setAttribute('aria-hidden', 'true');
-      icon.textContent = '×';
-      del.appendChild(icon);
-      del.setAttribute('aria-label', '删除：' + t.text);
+    const label = document.createElement('button');
+    label.type = 'button';
+    label.className = 'todo-text';
+    label.textContent = t.text; // 当文本显示，不当 HTML 解析
 
-      li.append(label, edit, del);
-      frag.appendChild(li);
-    }
-    els.list.replaceChildren(frag);
+    const edit = makeButton('todo-edit', '编辑：' + t.text);
+    edit.dataset.action = 'edit';
+    edit.textContent = '编辑';
 
-    if (keepId !== undefined && keepCls) {
-      // 重画前焦点在列表里：画完放回同一条的同一个按钮
-      const again = els.list.querySelector<HTMLElement>(
-        `li[data-id="${keepId}"] .${keepCls.split(' ')[0]}`,
-      );
-      again?.focus();
-    }
+    const del = makeButton('todo-del', '删除：' + t.text);
+    del.dataset.action = 'delete';
+    const icon = document.createElement('span');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = '×';
+    del.appendChild(icon);
 
+    li.append(label, edit, del);
+    return li;
+  }
+
+  // 列表下面的空状态、计数，以及筛选按钮的按下状态
+  function renderStatus(shownCount: number): void {
     const done = todos.filter((t) => t.completed).length;
     els.empty.textContent =
       todos.length === 0 ? '还没有待办，先写一条试试。' : '这个筛选下没有待办。';
-    els.empty.hidden = shown.length > 0;
+    els.empty.hidden = shownCount > 0;
     els.count.textContent = todos.length
       ? '共 ' + todos.length + ' 项，已完成 ' + done + ' 项'
       : '';
     els.filterBtns.forEach((b) =>
       b.setAttribute('aria-pressed', String(b.dataset.filter === filter)),
     );
+  }
+
+  function render(): void {
+    const shown = filterTodos(todos, filter);
+    const spot = captureFocus(); // 必须在 replaceChildren 之前记，旧按钮一移除焦点就丢了
+    const frag = document.createDocumentFragment();
+    for (const t of shown) frag.appendChild(buildItem(t));
+    els.list.replaceChildren(frag);
+    restoreFocus(spot);
+    renderStatus(shown.length);
   }
 
   function editTodo(id: number): void {
@@ -186,22 +203,43 @@ function start(els: Els): void {
     }),
   );
 
+  interface Hit {
+    target: Element;
+    item: HTMLLIElement;
+    id: number;
+  }
+
+  // 事件委托的三道防御，顺序不变；任何一道没过都返回 null
+  function hitItem(target: EventTarget | null): Hit | null {
+    if (!(target instanceof Element)) return null; // 防御 1：target 不是元素
+    const item = target.closest<HTMLLIElement>('li');
+    if (!item || !els.list.contains(item)) return null; // 防御 2：closest 返回 null
+    const id = parseId(item.dataset.id);
+    return id === null ? null : { target, item, id }; // 防御 3：li 上没有合法 id
+  }
+
+  type Action = 'delete' | 'edit' | 'toggle';
+
+  // 点的是这一条里的删除按钮、编辑按钮，还是别处（切换）
+  function actionOf({ target, item }: Hit): Action {
+    const delBtn = target.closest('[data-action="delete"]');
+    if (delBtn && item.contains(delBtn)) return 'delete';
+    const editBtn = target.closest('[data-action="edit"]');
+    if (editBtn && item.contains(editBtn)) return 'edit';
+    return 'toggle';
+  }
+
   // 事件委托：监听器只绑一次，绑在不会被 render() 重画的 ul 上
   els.list.addEventListener('click', (e) => {
-    if (!(e.target instanceof Element)) return; // 防御 1：target 不是元素
-    const item = e.target.closest<HTMLLIElement>('li');
-    if (!item || !els.list.contains(item)) return; // 防御 2：closest 返回 null
-    const id = parseId(item.dataset.id);
-    if (id === null) return; // 防御 3：li 上没有合法 id
-
-    const delBtn = e.target.closest('[data-action="delete"]');
-    const editBtn = e.target.closest('[data-action="edit"]');
-    if (delBtn && item.contains(delBtn)) {
-      commit(removeTodo(todos, id));
-    } else if (editBtn && item.contains(editBtn)) {
-      editTodo(id);
+    const hit = hitItem(e.target);
+    if (!hit) return;
+    const action = actionOf(hit);
+    if (action === 'delete') {
+      commit(removeTodo(todos, hit.id));
+    } else if (action === 'edit') {
+      editTodo(hit.id);
     } else {
-      commit(toggleTodo(todos, id)); // 删除 / 编辑 / 切换互斥
+      commit(toggleTodo(todos, hit.id)); // 删除 / 编辑 / 切换互斥
     }
   });
 
