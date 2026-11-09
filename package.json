@@ -1,16 +1,17 @@
 {
   "name": "chenyu-dev",
-  "version": "2.0.0",
-  "description": "神针大学 陈屿 个人简历页（V2.0 待办清单 TS 版）",
+  "version": "3.0.0",
+  "description": "神针大学 陈屿 个人简历页（V3.0：Vite + TS + ESLint 工程化）",
   "scripts": {
-    "typecheck": "tsc -p .",
-    "build": "esbuild src/main.ts --bundle --format=iife --target=es2020 --outfile=dist/app.js",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "esbuild": "^0.28.2",
-    "typescript": "^7.0.2",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.6",
     "vitest": "^5.0.5"
   },
   "private": true,
