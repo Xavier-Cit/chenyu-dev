@@ -11,7 +11,7 @@ describe('addTodo', () => {
   it('正常添加：追加到末尾，内容、id、completed 都对', () => {
     const r = addTodo(sample(), '写实验日志', 3);
     expect(r.ok).toBe(true);
-    if (!r.ok) return;                       // 收窄类型，下面才能读 r.todos
+    if (!r.ok) return; // 收窄类型，下面才能读 r.todos
     expect(r.todos).toHaveLength(3);
     expect(r.todos[2]).toEqual({ id: 3, text: '写实验日志', completed: false });
   });

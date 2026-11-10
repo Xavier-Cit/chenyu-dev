@@ -14,13 +14,9 @@ export const MAX_LEN = 100;
 export type TextError = 'empty' | 'too-long';
 
 // 成功时带上新数组，失败时带上原因；调用方必须先判断 ok 才能拿到 todos
-export type Result =
-  | { ok: true; todos: Todo[] }
-  | { ok: false; error: TextError };
+export type Result = { ok: true; todos: Todo[] } | { ok: false; error: TextError };
 
-export type CheckedText =
-  | { ok: true; text: string }
-  | { ok: false; error: TextError };
+export type CheckedText = { ok: true; text: string } | { ok: false; error: TextError };
 
 // 输入框、prompt 拿到的文本都先过这里：去首尾空格，再拦空值和超长
 export function checkText(raw: string): CheckedText {
@@ -85,17 +81,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+// W6 的旧格式：数组里直接是字符串
+function fromLegacy(item: string, newId: () => number): Todo | null {
+  const text = item.trim();
+  return text === '' ? null : { id: newId(), text, completed: false };
+}
+
+function isValidId(id: unknown): id is number {
+  return typeof id === 'number' && Number.isSafeInteger(id) && id > 0;
+}
+
 // 把一条存档整理成 Todo；整理不了就返回 null
 export function normalize(item: unknown, newId: () => number): Todo | null {
-  if (typeof item === 'string') {                 // W6 的旧格式：数组里直接是字符串
-    const text = item.trim();
-    return text === '' ? null : { id: newId(), text, completed: false };
-  }
+  if (typeof item === 'string') return fromLegacy(item, newId);
   if (!isRecord(item)) return null;
   const { id, text, completed } = item;
   if (typeof text !== 'string' || text.trim() === '') return null;
   return {
-    id: typeof id === 'number' && Number.isSafeInteger(id) && id > 0 ? id : newId(),
+    id: isValidId(id) ? id : newId(),
     text,
     completed: completed === true,
   };
@@ -103,7 +106,7 @@ export function normalize(item: unknown, newId: () => number): Todo | null {
 
 export interface Loaded {
   todos: Todo[];
-  broken: boolean;          // true：存档坏了（不是 JSON / 不是数组），已从空白开始
+  broken: boolean; // true：存档坏了（不是 JSON / 不是数组），已从空白开始
 }
 
 export function parseStorage(raw: string | null, newId: () => number): Loaded {
@@ -121,7 +124,7 @@ export function parseStorage(raw: string | null, newId: () => number): Loaded {
   for (const item of data) {
     const t = normalize(item, newId);
     if (t === null) continue;
-    const fixed = seen.has(t.id) ? { ...t, id: newId() } : t;   // 存档里有重复 id 就重新发号
+    const fixed = seen.has(t.id) ? { ...t, id: newId() } : t; // 存档里有重复 id 就重新发号
     seen.add(fixed.id);
     todos.push(fixed);
   }

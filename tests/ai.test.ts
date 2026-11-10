@@ -4,7 +4,13 @@
 // id 生成器注入固定时间，不依赖真实时钟。
 import { describe, it, expect } from 'vitest';
 import {
-  removeTodo, updateTodo, parseId, createIdGen, parseStorage, MAX_LEN, type Todo,
+  removeTodo,
+  updateTodo,
+  parseId,
+  createIdGen,
+  parseStorage,
+  MAX_LEN,
+  type Todo,
 } from '../src/todo';
 
 const sample = (): Todo[] => [
@@ -59,7 +65,10 @@ describe('updateTodo', () => {
 
   it('100 字可以改，101 字返回 too-long', () => {
     expect(updateTodo(sample(), 1, '字'.repeat(MAX_LEN)).ok).toBe(true);
-    expect(updateTodo(sample(), 1, '字'.repeat(MAX_LEN + 1))).toEqual({ ok: false, error: 'too-long' });
+    expect(updateTodo(sample(), 1, '字'.repeat(MAX_LEN + 1))).toEqual({
+      ok: false,
+      error: 'too-long',
+    });
   });
 
   it('id 不存在：ok 但内容不变', () => {
@@ -93,7 +102,7 @@ describe('parseId（dataset.id → number）', () => {
     ['1.5'],
     ['NaN'],
     ['Infinity'],
-    ['9007199254740993'],   // 超过安全整数，转成 number 会丢精度
+    ['9007199254740993'], // 超过安全整数，转成 number 会丢精度
   ])('非法：%j → null', (raw) => {
     expect(parseId(raw)).toBeNull();
   });
@@ -128,12 +137,15 @@ describe('parseStorage', () => {
   });
 
   it('合法存档原样读出', () => {
-    expect(parseStorage(JSON.stringify(sample()), fixedGen())).toEqual({ todos: sample(), broken: false });
+    expect(parseStorage(JSON.stringify(sample()), fixedGen())).toEqual({
+      todos: sample(),
+      broken: false,
+    });
   });
 
   it.each([
     ['{bad json'],
-    ['<unavailable>'],        // main.ts 里存储被禁用时传进来的值
+    ['<unavailable>'], // main.ts 里存储被禁用时传进来的值
     ['{"a":1}'],
     ['"abc"'],
     ['42'],
@@ -153,7 +165,12 @@ describe('parseStorage', () => {
   it('过滤脏数据：null、数字、数组、没有 text、text 为空都丢掉', () => {
     const raw = JSON.stringify([
       { id: 1, text: 'ok', completed: false },
-      null, 42, ['x'], { id: 2 }, { id: 3, text: '  ' }, { id: 4, text: 123 },
+      null,
+      42,
+      ['x'],
+      { id: 2 },
+      { id: 3, text: '  ' },
+      { id: 4, text: 123 },
     ]);
     expect(parseStorage(raw, fixedGen()).todos).toEqual([{ id: 1, text: 'ok', completed: false }]);
   });
