@@ -4,11 +4,12 @@ module.exports = {
   root: true,
   env: { browser: true, es2022: true },
   parser: '@typescript-eslint/parser',
-  parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
+  parserOptions: { ecmaVersion: 'latest', sourceType: 'module', ecmaFeatures: { jsx: true } },
   plugins: ['@typescript-eslint'],
   extends: [
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
+    'plugin:react-hooks/recommended', // React 官方 Hooks 规则（实测：在事件回调里直接改 state 它查不出来，靠 UI 测试兜底）
     'prettier', // 关掉和 Prettier 冲突的格式类规则，格式只归 Prettier 管
   ],
   rules: {

@@ -1,7 +1,7 @@
 {
   "name": "chenyu-dev",
-  "version": "3.0.0",
-  "description": "神针大学 陈屿 个人简历页（V3.0：Vite + TS + ESLint 工程化）",
+  "version": "4.0.0",
+  "description": "神针大学 陈屿 个人简历页（V4.0：待办清单 React 组件化）",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -13,15 +13,26 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@typescript-eslint/eslint-plugin": "^8.72.1",
     "@typescript-eslint/parser": "^8.72.1",
+    "@vitejs/plugin-react": "^6.3.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "jsdom": "^31.0.0",
     "prettier": "^3.9.10",
     "typescript": "~6.0.3",
     "vite": "^8.3.6",
     "vitest": "^5.0.5"
   },
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  }
 }
