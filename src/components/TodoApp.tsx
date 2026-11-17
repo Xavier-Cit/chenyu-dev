@@ -55,11 +55,16 @@ export function TodoApp() {
     if (import.meta.env.DEV) console.log('[todos]', todos);
   }, [todos]);
 
-  // 改数据 → 保存 → 重渲染：setTodos 换成一个新数组，React 负责把页面画成它的样子
+  // 单 Effect 写入：todos 一变就存一次。惰性初始化保证首次渲染时 todos 已经是存档内容，
+  // 所以第一次写入写回的是读到的数据，不会用空数组把存档覆盖掉。
+  // 不再在 effect 里 setMsg：react-hooks 的 set-state-in-effect 规则禁止在 effect 里同步 setState
+  useEffect(() => {
+    saveTodos(todos);
+  }, [todos]);
+
+  // 改数据 → 重渲染；持久化交给上面的 useEffect，不在这里直接写 localStorage
   function commit(next: Todo[]): void {
     setTodos(next);
-    if (!saveTodos(next))
-      setMsg({ text: '浏览器不允许保存，刷新后这次改动会丢失。', isError: true });
   }
 
   // 返回 true 表示改动生效；失败时显示对应提示
