@@ -13,6 +13,8 @@ import {
   updateTodo,
 } from '../todo';
 import { loadTodos, saveTodos } from '../storage';
+import { useTheme } from '../theme';
+import { ThemeToggle } from './ThemeToggle';
 import { TodoForm } from './TodoForm';
 import { TodoFilters } from './TodoFilters';
 import { TodoList } from './TodoList';
@@ -35,6 +37,9 @@ interface Msg {
 const NO_MSG: Msg = { text: '', isError: false };
 
 export function TodoApp() {
+  // 第二个 Context 消费者：读主题，页面配色交给 <html data-theme> 和 CSS 变量
+  const { theme } = useTheme();
+
   // 只在第一次渲染时读一次存档；newId 在整个组件生命周期里是同一个生成器
   const [newId] = useState(() => createIdGen());
   const [initial] = useState(() => loadTodos(newId));
@@ -86,6 +91,10 @@ export function TodoApp() {
 
   return (
     <div className="todo">
+      <div className="todo-toolbar">
+        <ThemeToggle />
+        <span className="todo-theme">当前主题：{theme === 'light' ? '浅色' : '深色'}</span>
+      </div>
       <TodoForm onAdd={handleAdd} />
       <TodoFilters filter={filter} onChange={setFilter} />
       <p className={msg.isError ? 'todo-msg is-error' : 'todo-msg'} role="status">
