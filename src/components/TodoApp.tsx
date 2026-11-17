@@ -13,6 +13,8 @@ import {
   updateTodo,
 } from '../todo';
 import { loadTodos, saveTodos } from '../storage';
+import { useTheme } from '../theme';
+import { ThemeToggle } from './ThemeToggle';
 import { TodoForm } from './TodoForm';
 import { TodoFilters } from './TodoFilters';
 import { TodoList } from './TodoList';
@@ -35,6 +37,9 @@ interface Msg {
 const NO_MSG: Msg = { text: '', isError: false };
 
 export function TodoApp() {
+  // 第二个 Context 消费者：读主题，页面配色交给 <html data-theme> 和 CSS 变量
+  const { theme } = useTheme();
+
   // 只在第一次渲染时读一次存档；newId 在整个组件生命周期里是同一个生成器
   const [newId] = useState(() => createIdGen());
   const [initial] = useState(() => loadTodos(newId));
@@ -50,11 +55,16 @@ export function TodoApp() {
     if (import.meta.env.DEV) console.log('[todos]', todos);
   }, [todos]);
 
-  // 改数据 → 保存 → 重渲染：setTodos 换成一个新数组，React 负责把页面画成它的样子
+  // 单 Effect 写入：todos 一变就存一次。惰性初始化保证首次渲染时 todos 已经是存档内容，
+  // 所以第一次写入写回的是读到的数据，不会用空数组把存档覆盖掉。
+  // 不再在 effect 里 setMsg：react-hooks 的 set-state-in-effect 规则禁止在 effect 里同步 setState
+  useEffect(() => {
+    saveTodos(todos);
+  }, [todos]);
+
+  // 改数据 → 重渲染；持久化交给上面的 useEffect，不在这里直接写 localStorage
   function commit(next: Todo[]): void {
     setTodos(next);
-    if (!saveTodos(next))
-      setMsg({ text: '浏览器不允许保存，刷新后这次改动会丢失。', isError: true });
   }
 
   // 返回 true 表示改动生效；失败时显示对应提示
@@ -86,6 +96,10 @@ export function TodoApp() {
 
   return (
     <div className="todo">
+      <div className="todo-toolbar">
+        <ThemeToggle />
+        <span className="todo-theme">当前主题：{theme === 'light' ? '浅色' : '深色'}</span>
+      </div>
       <TodoForm onAdd={handleAdd} />
       <TodoFilters filter={filter} onChange={setFilter} />
       <p className={msg.isError ? 'todo-msg is-error' : 'todo-msg'} role="status">

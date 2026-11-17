@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { TodoApp } from '../src/components/TodoApp';
+import { ThemeProvider } from '../src/theme';
 import type { Todo } from '../src/todo';
 
 let logSpy: MockInstance<typeof console.log>;
@@ -45,9 +46,18 @@ function item(text: string): HTMLElement {
   return li;
 }
 
+// TodoApp 现在依赖 ThemeContext，测试里统一用这个助手包一层 Provider
+function renderApp() {
+  return render(
+    <ThemeProvider>
+      <TodoApp />
+    </ThemeProvider>,
+  );
+}
+
 describe('TodoApp：页面 = State', () => {
   it('输入“任务A”点添加：输入框清空，列表多一项，控制台数组同步', () => {
-    render(<TodoApp />);
+    renderApp();
     add('任务A');
     expect(screen.getByLabelText<HTMLInputElement>('新的待办').value).toBe('');
     expect(shownTexts()).toEqual(['任务A']);
@@ -55,7 +65,7 @@ describe('TodoApp：页面 = State', () => {
   });
 
   it('纯空格加不进去：列表不变，出现提示，输入框保留原文', () => {
-    render(<TodoApp />);
+    renderApp();
     add('   ');
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
     expect(screen.getByRole('status').textContent).toBe('请先写点内容再添加。');
@@ -63,7 +73,7 @@ describe('TodoApp：页面 = State', () => {
   });
 
   it('点任务A的文字：出现删除线样式，State 里 completed 变成 true', () => {
-    render(<TodoApp />);
+    renderApp();
     add('任务A');
     fireEvent.click(screen.getByRole('button', { name: '任务A' }));
     expect(item('任务A').className).toBe('todo-item done');
@@ -72,7 +82,7 @@ describe('TodoApp：页面 = State', () => {
   });
 
   it('点任务A的删除：列表少一项，控制台数组同步少一项', () => {
-    render(<TodoApp />);
+    renderApp();
     add('任务A');
     add('任务B');
     fireEvent.click(screen.getByRole('button', { name: '删除：任务A' }));
@@ -81,7 +91,7 @@ describe('TodoApp：页面 = State', () => {
   });
 
   it('编辑：取消不改；输入新文字后页面和 State 都更新', () => {
-    render(<TodoApp />);
+    renderApp();
     add('任务A');
     const ask = vi
       .spyOn(window, 'prompt')
@@ -96,7 +106,7 @@ describe('TodoApp：页面 = State', () => {
   });
 
   it('筛选只改显示不改数据：“已完成”下只看到已完成的，State 仍是全部', () => {
-    render(<TodoApp />);
+    renderApp();
     add('任务A');
     add('任务B');
     fireEvent.click(screen.getByRole('button', { name: '任务A' }));
@@ -109,18 +119,18 @@ describe('TodoApp：页面 = State', () => {
   });
 
   it('刷新（重新挂载）后从 localStorage 恢复，内容和完成状态都在', () => {
-    const first = render(<TodoApp />);
+    const first = renderApp();
     add('任务A');
     fireEvent.click(screen.getByRole('button', { name: '任务A' }));
     first.unmount();
-    render(<TodoApp />);
+    renderApp();
     expect(shownTexts()).toEqual(['任务A']);
     expect(item('任务A').className).toBe('todo-item done');
   });
 
   it('存档坏了：不崩溃，提示“读取失败，已从空白开始”', () => {
     localStorage.setItem('todos', '{坏的');
-    render(<TodoApp />);
+    renderApp();
     expect(screen.getByRole('status').textContent).toBe('之前保存的待办读取失败，已从空白开始。');
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
